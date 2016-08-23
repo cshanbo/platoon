@@ -24,6 +24,7 @@ decedent class.
 from __future__ import absolute_import, print_function
 import os
 import sys
+import socket
 import signal
 import time
 import shlex
@@ -138,6 +139,8 @@ class Controller(object):
 
         # Initialize workers
         if experiment_name:
+            if self._multinode:
+                log_directory = os.path.join(log_directory, socket.gethostname())
             try:
                 os.makedirs(log_directory)
             except OSError:
@@ -684,7 +687,6 @@ class Controller(object):
 
         """
         # Get :class:`Controller`'s devices
-        import socket
         hostname = socket.gethostname()
 
         if devices:

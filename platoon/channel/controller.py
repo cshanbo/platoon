@@ -38,8 +38,6 @@ import posix_ipc
 import zmq
 
 try:
-    from mpi4py import rc
-    rc.initialize = False
     from mpi4py import MPI
 except ImportError:
     MPI = None
@@ -315,9 +313,6 @@ class Controller(object):
         except Exception as exc:
             print(PlatoonError("Unexpected exception", exc), file=sys.stderr)
             self._clean()
-        else:
-            if self._multinode and MPI:
-                MPI.Finalize()
         finally:  # Close sockets and unlink for shared memory
             self._close()
         return self._success
@@ -352,7 +347,6 @@ class Controller(object):
         """
         if MPI is None:
             raise AttributeError("mpi4py is not imported")
-        MPI.Init()
         self._region_comm = MPI.COMM_WORLD
         self._region_size = MPI.COMM_WORLD.Get_size()
         self._region_rank = MPI.COMM_WORLD.Get_rank()

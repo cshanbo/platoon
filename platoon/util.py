@@ -14,7 +14,7 @@ import sys
 import subprocess
 import cffi
 
-import numpy as np
+import numpy
 try:
     from mpi4py import MPI
 except ImportError:
@@ -84,17 +84,49 @@ def launch_process(logs_folder, experiment_name, args, device,
         with open(log_file.format("err"), 'w') as stderr_file:
             env = dict(os.environ)
             env['THEANO_FLAGS'] = '{},device={}'.format(env.get('THEANO_FLAGS', ''), device)
-            if experiment_name == "platoon" and process_type == "controller":
-                executable = ["-m", "platoon.channel.controller"]
-            else:
-                executable = ["{0}_{1}.py".format(experiment_name, process_type)]
-            command = [sys.executable, "-u"] + executable
-            if args:
-                command += args
+            command = [sys.executable] + shape_args(experiment_name, args, process_type)
             process = subprocess.Popen(command, bufsize=0, stdout=stdout_file, stderr=stderr_file, env=env)
 
     print("Done")
     return process
+
+
+def launch_mpi_workers(experiment_name, args, devices):
+    """
+    Helper function for spawning dynamically a Platoon subprocess (usually a
+    worker) in multi-node MPI environment.
+    """
+    import socket
+    args = [shape_args(experiment_name, args, "worker") +
+            ["--device", device] for device in devices]
+    info = MPI.Info.Create()
+    info['host'] = socket.gethostname()
+    info['ompi_non_mpi'] = 'true'
+    info['env'] = 'THEANO_FLAGS'
+    errcodes = []
+    intercomm = MPI.COMM_SELF.Spawn_multiple(
+        [sys.executable] * self._local_size, args,
+        [1] * self._local_size, [info] * self._local_size,
+        root=0, errcodes=errcodes)
+    info.Free()
+    if any(numpy.asarray(errcodes) != MPI.SUCCESS):
+        raise PlatoonError("MPI spawn multi error codes: {}".format(errcodes))
+    return intercomm
+
+
+def shape_args(experiment_name, args, process_type):
+    """
+    Returns a proper list of arguments that will spawn a process
+    """
+    if experiment_name == "platoon" and process_type == "controller":
+        executable = ["-m", "platoon.channel.controller"]
+    else:
+        executable = ["{0}_{1}.py".format(experiment_name, process_type)]
+    fixed_args = ["-u"] + executable
+    if args:
+        fixed_args += args
+    return fixed_args
+
 
 if MPI:
     GA_TO_MPI_OP = {
@@ -112,21 +144,21 @@ if MPI:
         }
 
     NP_TO_MPI_TYPE = {
-        np.dtype('bool'): MPI.C_BOOL,
-        np.dtype('int8'): MPI.INT8_T,
-        np.dtype('uint8'): MPI.UINT8_T,
-        np.dtype('int16'): MPI.INT16_T,
-        np.dtype('uint16'): MPI.UINT16_T,
-        np.dtype('int32'): MPI.INT32_T,
-        np.dtype('uint32'): MPI.UINT32_T,
-        np.dtype('int64'): MPI.INT64_T,
-        np.dtype('uint64'): MPI.UINT64_T,
-        np.dtype('float32'): MPI.FLOAT,
-        np.dtype('float64'): MPI.DOUBLE,
-        np.dtype('complex64'): MPI.C_FLOAT_COMPLEX,
-        np.dtype('complex128'): MPI.C_DOUBLE_COMPLEX,
+        numpy.dtype('bool'): MPI.C_BOOL,
+        numpy.dtype('int8'): MPI.INT8_T,
+        numpy.dtype('uint8'): MPI.UINT8_T,
+        numpy.dtype('int16'): MPI.INT16_T,
+        numpy.dtype('uint16'): MPI.UINT16_T,
+        numpy.dtype('int32'): MPI.INT32_T,
+        numpy.dtype('uint32'): MPI.UINT32_T,
+        numpy.dtype('int64'): MPI.INT64_T,
+        numpy.dtype('uint64'): MPI.UINT64_T,
+        numpy.dtype('float32'): MPI.FLOAT,
+        numpy.dtype('float64'): MPI.DOUBLE,
+        numpy.dtype('complex64'): MPI.C_FLOAT_COMPLEX,
+        numpy.dtype('complex128'): MPI.C_DOUBLE_COMPLEX,
         # TODO How to handle half types in MPI?
-        #  np.dtype('float16'): MPI.HALF,
+        #  numpy.dtype('float16'): MPI.HALF,
         }
 
 
@@ -149,7 +181,7 @@ def dtype_to_mpi(dtype):
     """
     if MPI is None:
         raise AttributeError("mpi4py is not imported")
-    res = NP_TO_MPI_TYPE.get(np.dtype(dtype))
+    res = NP_TO_MPI_TYPE.get(numpy.dtype(dtype))
     if res is not None:
         return res
     raise TypeError("Conversion from dtype {} is not known".format(dtype))

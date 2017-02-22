@@ -143,24 +143,41 @@ class Controller(object):
                 os.makedirs(log_directory)
             except OSError:
                 pass
+
             if worker_args is None:
                 worker_args = ''
             worker_args += " --control-port=%d" % control_port
             worker_args += " --data-hwm=%d" % data_hwm
             if data_port:
                 worker_args += " --data-port=%d" % data_port
-            try:
-                for device in self._devices:
-                    p = launch_process(log_directory, experiment_name,
-                                       shlex.split(worker_args), device,
-                                       "worker")
-                    self._workers.add(p.pid)
-            except OSError as exc:
-                print("ERROR! OS error in Popen: {}".format(exc), file=sys.stderr)
-                sys.exit(3)
-            except Exception as exc:
-                print("ERROR! Other while launching process: {}".format(exc), file=sys.stderr)
-                sys.exit(4)
+            worker_args = shlex.split(worker_args)
+
+            if not self._multinode:  # then fork subprocesses
+                try:
+                    for device in self._devices:
+                        p = launch_process(log_directory, experiment_name,
+                                           worker_args, device, "worker")
+                        self._workers.add(p.pid)
+                except OSError as exc:
+                    print("ERROR! OS error in Popen: {}".format(exc),
+                          file=sys.stderr)
+                    sys.exit(3)
+                except Exception as exc:
+                    print("ERROR! Other while launching process: {}".format(exc),
+                          file=sys.stderr)
+                    sys.exit(4)
+            else:  # then dynamically spawn a group of processes
+                # It is prefered to use MPI's API in multi-node scenarios for
+                # compatibility. See
+                # https://www.open-mpi.org/faq/?category=openfabrics#ofa-fork
+                try:
+                    self._workers_comm = launch_mpi_workers(experiment_name, worker_args,
+                                                            devices)
+                    # TODO How can we take control of separate procs inside a group
+                except Exception as exc:
+                    print("ERROR! While spawning workers through MPI: {}".format(exc),
+                          file=sys.stderr)
+                    sys.exit(4)
 
 ################################################################################
 #                         Control Serving and Handling                         #
@@ -347,6 +364,7 @@ class Controller(object):
         """
         if MPI is None:
             raise AttributeError("mpi4py is not imported")
+
         self._region_comm = MPI.COMM_WORLD
         self._region_size = MPI.COMM_WORLD.Get_size()
         self._region_rank = MPI.COMM_WORLD.Get_rank()

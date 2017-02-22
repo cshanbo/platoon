@@ -43,8 +43,6 @@ import zmq
 try:
     import pygpu
     from pygpu import collectives as gpucoll
-    from theano import gpuarray as theanoga
-    from theano import config as theanoconf
 except ImportError:
     pygpu = None
 
@@ -54,6 +52,15 @@ if six.PY3:
     buffer_ = memoryview
 else:
     buffer_ = buffer  # noqa
+
+
+# Setup environmental variables which configure Theano, before she is imported
+# in the worker process (This will probably set also Theano flags for
+# controller processes, but Theano should not be imported in controllers)
+if len(sys.argv) > 1 and sys.argv[-2] == '--device':
+    DEVICE = sys.argv[-1]
+    THEANO_FLAGS = '{0},device={1}'.format(os.getenv('THEANO_FLAGS', ''), DEVICE)
+    os.environ['THEANO_FLAGS'] = THEANO_FLAGS
 
 
 @six.add_metaclass(SingletonType)
@@ -275,6 +282,9 @@ class Worker(object):
 
         """
         if pygpu:
+            from theano import gpuarray as theanoga
+            from theano import config as theanoconf
+
             self.ctx_name = None
             self.gpuctx = theanoga.get_context(self.ctx_name)
             self.device = theanoconf.device
@@ -293,7 +303,7 @@ class Worker(object):
             self._global_size = response['global_size']
             self._global_rank = response['global_rank']
         else:
-            raise AttributeError("pygpu or theano is not imported")
+            raise ImportError('No module named \'pygpu\'')
 
     def init_mb_sock(self, port, data_hwm=10):
         """
@@ -656,10 +666,10 @@ class Worker(object):
     @staticmethod
     def default_parser():
         """
-        Returns base :class:`Controller`'s class parser for its arguments.
+        Returns base :class:`Worker`'s class parser for its arguments.
 
         This parser can be augmented with more arguments, if it is needed, in
-        case a class which inherits :class:`Controller` exists.
+        case a class which inherits :class:`Worker` exists.
 
         .. versionadded:: 0.6.1
 
@@ -668,7 +678,8 @@ class Worker(object):
             description="Base Platoon Worker process.")
         parser.add_argument('--control-port', default=5567, type=int, required=False, help='The control port number.')
         parser.add_argument('--data-port', type=int, required=False, help='The data port number.')
-        parser.add_argument('--data-hwm', default=10, type=int, required=False, help='The data port high water mark')
+        parser.add_argument('--data-hwm', default=10, type=int, required=False, help='The data port high water mark.')
+        parser.add_argument('--device', default=None, type=str, required=False, help='Alternative way to define worker\'s device in Platoon.')
         return parser
 
     @staticmethod

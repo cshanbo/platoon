@@ -17,7 +17,6 @@ Exit Codes
 4: Other error
 
 """
-
 from __future__ import print_function
 import os
 import sys

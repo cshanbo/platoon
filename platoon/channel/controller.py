@@ -44,8 +44,8 @@ try:
 except ImportError:
     MPI = None
 
-from ..util import (PlatoonError, mmap, launch_process,
-                    op_to_mpi, dtype_to_mpi)
+from ..util import (PlatoonError, mmap, launch_process)
+from ..mpi_convert import (op_to_mpi, dtype_to_mpi)
 
 
 class Controller(object):
@@ -774,6 +774,7 @@ def spawn_controller():
     args = parser.parse_args()
     controller = Controller(**Controller.default_arguments(args))
     return controller.serve()
+
 
 if __name__ == '__main__':
     rcode = spawn_controller()

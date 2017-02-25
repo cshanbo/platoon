@@ -14,14 +14,6 @@ import sys
 import subprocess
 import cffi
 
-import numpy as np
-try:
-    from mpi4py import rc
-    rc.initialize = False
-    from mpi4py import MPI
-except ImportError:
-    MPI = None
-
 
 class PlatoonException(Exception):
     """Exception used for abnormal behaviour related to Platoon.
@@ -97,64 +89,6 @@ def launch_process(logs_folder, experiment_name, args, device,
 
     print("Done")
     return process
-
-if MPI:
-    GA_TO_MPI_OP = {
-        '+': MPI.SUM,
-        "sum": MPI.SUM,
-        "add": MPI.SUM,
-        '*': MPI.PROD,
-        "prod": MPI.PROD,
-        "product": MPI.PROD,
-        "mul": MPI.PROD,
-        "max": MPI.MAX,
-        "maximum": MPI.MAX,
-        "min": MPI.MIN,
-        "minimum": MPI.MIN,
-        }
-
-    NP_TO_MPI_TYPE = {
-        np.dtype('bool'): MPI.C_BOOL,
-        np.dtype('int8'): MPI.INT8_T,
-        np.dtype('uint8'): MPI.UINT8_T,
-        np.dtype('int16'): MPI.INT16_T,
-        np.dtype('uint16'): MPI.UINT16_T,
-        np.dtype('int32'): MPI.INT32_T,
-        np.dtype('uint32'): MPI.UINT32_T,
-        np.dtype('int64'): MPI.INT64_T,
-        np.dtype('uint64'): MPI.UINT64_T,
-        np.dtype('float32'): MPI.FLOAT,
-        np.dtype('float64'): MPI.DOUBLE,
-        np.dtype('complex64'): MPI.C_FLOAT_COMPLEX,
-        np.dtype('complex128'): MPI.C_DOUBLE_COMPLEX,
-        # TODO How to handle half types in MPI?
-        #  np.dtype('float16'): MPI.HALF,
-        }
-
-
-def op_to_mpi(op):
-    """
-    Converts pygpu collective reduce operation types to MPI reduce operation
-    types.
-    """
-    if MPI is None:
-        raise AttributeError("mpi4py is not imported")
-    res = GA_TO_MPI_OP.get(op.lower())
-    if res is not None:
-        return res
-    raise ValueError("Invalid reduce operation: {}".format(str(op)))
-
-
-def dtype_to_mpi(dtype):
-    """
-    Converts numpy datatypes to MPI datatypes.
-    """
-    if MPI is None:
-        raise AttributeError("mpi4py is not imported")
-    res = NP_TO_MPI_TYPE.get(np.dtype(dtype))
-    if res is not None:
-        return res
-    raise TypeError("Conversion from dtype {} is not known".format(dtype))
 
 
 class SingletonType(type):

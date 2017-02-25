@@ -42,10 +42,11 @@ try:
 except ImportError:
     MPI = None
 
-from ..util import (PlatoonError, mmap, launch_process)
+from ..util import (PlatoonError, mmap, launch_process, SingletonType)
 from ..mpi_util import (launch_mpi_workers, op_to_mpi, dtype_to_mpi)
 
 
+@six.add_metaclass(SingletonType)
 class Controller(object):
     """
     General multi-process controller.
@@ -175,6 +176,7 @@ class Controller(object):
                                                             experiment_name,
                                                             worker_args)
                     # TODO How can we take control of separate procs inside a group
+                    # TODO Manage these workers
                 except Exception as exc:
                     print("ERROR! While spawning workers through MPI: {}".format(exc),
                           file=sys.stderr)
@@ -353,7 +355,7 @@ class Controller(object):
         """
         self.ccontext = zmq.Context()
         self.csocket = self.ccontext.socket(zmq.REP)
-        self.csocket.bind('tcp://localhost:{}'.format(port))
+        self.csocket.bind('tcp://*:{}'.format(port))
 
     def _init_region_comm(self):
         """

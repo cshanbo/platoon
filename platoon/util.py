@@ -114,7 +114,8 @@ class SingletonType(type):
             cls.instance = super(SingletonType, cls).__call__(*args, **kwds)
         else:
             if args or kwds:
-                print(PlatoonWarning("Worker instance has already been initialized."
-                                     "\nArgs: {0}, Kwds: {1}".format(args, kwds)),
+                print(PlatoonWarning("{0} instance has already been initialized."
+                                     "\nArgs: {1}, Kwds: {2}".format(str(cls).strip('__main__.'),
+                                                                     args, kwds)),
                       file=sys.stderr)
         return cls.instance

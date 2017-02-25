@@ -323,7 +323,7 @@ class Worker(object):
         self.asocket = self.context.socket(zmq.PULL)
         self.asocket.setsockopt(zmq.LINGER, 0)
         self.asocket.set_hwm(data_hwm)
-        self.asocket.connect("tcp://localhost:{}".format(port))
+        self.asocket.connect("tcp://*:{}".format(port))
 
         self.apoller = zmq.Poller()
         self.apoller.register(self.asocket, zmq.POLLIN)

@@ -20,7 +20,7 @@ try:
 except ImportError:
     MPI = None
 
-from util import shape_args
+from .util import shape_args
 
 
 def launch_mpi_workers(workers_count, experiment_name, worker_args):

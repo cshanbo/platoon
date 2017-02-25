@@ -340,7 +340,7 @@ class Controller(object):
         """
         self.ccontext = zmq.Context()
         self.csocket = self.ccontext.socket(zmq.REP)
-        self.csocket.bind('tcp://*:{}'.format(port))
+        self.csocket.bind('tcp://localhost:{}'.format(port))
 
     def _init_region_comm(self):
         """

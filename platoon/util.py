@@ -16,6 +16,8 @@ import cffi
 
 import numpy as np
 try:
+    from mpi4py import rc
+    rc.initialize = False
     from mpi4py import MPI
 except ImportError:
     MPI = None

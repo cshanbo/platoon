@@ -333,7 +333,8 @@ class Worker(object):
         """
         self.csocket = self.context.socket(zmq.REQ)
         self.csocket.setsockopt(zmq.LINGER, 0)
-        self.csocket.connect('tcp://localhost:{}'.format(port))
+        # self.csocket.connect('tcp://localhost:{}'.format(port))
+        self.csocket.connect('ipc:///search/odin/chengshanbo/ipctmp/test.ipc')
 
         self.cpoller = zmq.Poller()
         self.cpoller.register(self.csocket, zmq.POLLIN)

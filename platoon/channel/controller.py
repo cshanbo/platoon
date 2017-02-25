@@ -335,7 +335,8 @@ class Controller(object):
         """
         self.ccontext = zmq.Context()
         self.csocket = self.ccontext.socket(zmq.REP)
-        self.csocket.bind('tcp://*:{}'.format(port))
+        # self.csocket.bind('ipc:///search/odin/chengshanbo/ipctmp/test.ipc'.format(port))
+        self.csocket.bind('ipc:///search/odin/chengshanbo/ipctmp/test.ipc')
 
     def _init_region_comm(self):
         """

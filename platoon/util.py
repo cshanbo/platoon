@@ -100,13 +100,14 @@ def launch_mpi_workers(workers_count, experiment_name, args, devices):
     args = [shape_args(experiment_name, args, "worker") +
             ["--device", device] for device in devices]
     info = MPI.Info.Create()
-    info['host'] = socket.gethostname()
+    #  info['host'] = socket.gethostname()
     info['ompi_non_mpi'] = 'true'
     info['env'] = 'THEANO_FLAGS'
+    info['pernode'] = 'true'
     errcodes = []
-    intercomm = MPI.COMM_SELF.Spawn_multiple(
+    intercomm = MPI.COMM_WORLD.Spawn_multiple(
         [sys.executable] * workers_count, args,
-        [1] * workers_count, [info] * workers_count,
+        [2] * workers_count, [info] * workers_count,
         root=0, errcodes=errcodes)
     info.Free()
     if any(numpy.asarray(errcodes) != MPI.SUCCESS):

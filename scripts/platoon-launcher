@@ -121,8 +121,9 @@ if __name__ == '__main__':
         env = dict(os.environ)
         theano_flags = "THEANO_FLAGS={0},device={1}".format(env.pop('THEANO_FLAGS', ''), "cpu")
         command = ["mpirun"]
-        command += ["--output-filename", log_file.format("log")]
+        # command += ["--output-filename", log_file.format("log")]
         command += ["-mca", "mpi_warn_on_fork", "0"]
+        command += ["--oversubscribe"]
         command += ["-np", str(len(hosts))]
         command += ["-H", ','.join(hosts)]
         command += ["--map-by", "ppr:1:node"]

@@ -42,8 +42,8 @@ try:
 except ImportError:
     MPI = None
 
-from ..util import (PlatoonError, mmap, launch_process,
-                    op_to_mpi, dtype_to_mpi, launch_mpi_workers)
+from ..util import (PlatoonError, mmap, launch_process)
+from ..mpi_convert import (op_to_mpi, dtype_to_mpi)
 
 
 class Controller(object):
@@ -352,7 +352,7 @@ class Controller(object):
         """
         self.ccontext = zmq.Context()
         self.csocket = self.ccontext.socket(zmq.REP)
-        self.csocket.bind('tcp://*:{}'.format(port))
+        self.csocket.bind('tcp://localhost:{}'.format(port))
 
     def _init_region_comm(self):
         """
@@ -786,6 +786,7 @@ def spawn_controller():
     args = parser.parse_args()
     controller = Controller(**Controller.default_arguments(args))
     return controller.serve()
+
 
 if __name__ == '__main__':
     rcode = spawn_controller()

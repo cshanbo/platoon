@@ -110,7 +110,7 @@ def launch_mpi_workers(workers_count, experiment_name, args, devices):
         root=0, errcodes=errcodes)
     info.Free()
     if any(numpy.asarray(errcodes) != MPI.SUCCESS):
-        raise PlatoonError("MPI spawn multi error codes: {}".format(errcodes))
+        raise PlatoonError("MPI spawn multi error codes: {0}\nArgs passed: {1}".format(errcodes, args))
     return intercomm
 
 

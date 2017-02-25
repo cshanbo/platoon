@@ -122,7 +122,7 @@ if __name__ == '__main__':
         command = ["mpirun"]
         # command += ["--output-filename", log_file.format("log")]
         command += ["-mca", "mpi_warn_on_fork", "0"]
-        command += ["--oversubscribe"]
+        #  command += ["--oversubscribe"]
         command += ["-np", str(len(hosts))]
         command += ["-H", ','.join(hosts)]
         command += ["--map-by", "ppr:1:node"]

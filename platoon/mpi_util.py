@@ -8,10 +8,14 @@
    :synopsis: Contains conversion functions and worker spawning through MPI.
 
 """
+from __future__ import absolute_import, print_function
+import os
+import sys
+
 import numpy
 try:
-    from mpi4py import rc
-    rc.initialize = False
+    #  from mpi4py import rc
+    #  rc.initialize = False
     from mpi4py import MPI
 except ImportError:
     MPI = None
@@ -19,7 +23,7 @@ except ImportError:
 from util import shape_args
 
 
-def launch_mpi_workers(workers_count, experiment_name, args, devices):
+def launch_mpi_workers(workers_count, experiment_name, worker_args):
     """
     Helper function for spawning dynamically a Platoon subprocess (usually a
     worker) in multi-node MPI environment.
@@ -27,17 +31,15 @@ def launch_mpi_workers(workers_count, experiment_name, args, devices):
     if MPI is None:
         raise ImportError("No module named 'mpi4py'")
     import socket
-    args = [shape_args(experiment_name, args, "worker") +
-            ["--device", device] for device in devices]
+    args = shape_args(experiment_name, worker_args, "worker")
     info = MPI.Info.Create()
     info['host'] = socket.gethostname()
     info['ompi_non_mpi'] = 'true'
-    info['env'] = 'THEANO_FLAGS'
+    env = dict(os.environ)
+    info['env'] = '\n'.join(env.keys())
     errcodes = []
-    intercomm = MPI.COMM_SELF.Spawn_multiple(
-        [sys.executable] * workers_count, args,
-        [1] * workers_count, [info] * workers_count,
-        root=0, errcodes=errcodes)
+    intercomm = MPI.COMM_SELF.Spawn(sys.executable, args, workers_count,
+                                    info, root=0, errcodes=errcodes)
     info.Free()
     if any(numpy.asarray(errcodes) != MPI.SUCCESS):
         raise PlatoonError("MPI spawn multi error codes: {0}\nArgs passed: {1}".format(errcodes, args))

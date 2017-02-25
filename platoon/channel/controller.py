@@ -43,7 +43,7 @@ except ImportError:
     MPI = None
 
 from ..util import (PlatoonError, mmap, launch_process)
-from ..mpi_convert import (op_to_mpi, dtype_to_mpi)
+from ..mpi_util import (launch_mpi_workers, op_to_mpi, dtype_to_mpi)
 
 
 class Controller(object):
@@ -171,8 +171,9 @@ class Controller(object):
                 # compatibility. See
                 # https://www.open-mpi.org/faq/?category=openfabrics#ofa-fork
                 try:
-                    self._workers_comm = launch_mpi_workers(self._local_size, experiment_name,
-                                                            worker_args, self._devices)
+                    self._workers_comm = launch_mpi_workers(self._local_size,
+                                                            experiment_name,
+                                                            worker_args)
                     # TODO How can we take control of separate procs inside a group
                 except Exception as exc:
                     print("ERROR! While spawning workers through MPI: {}".format(exc),

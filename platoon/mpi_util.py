@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-:mod:`mpi_convert` -- Conversion methods for MPI
-================================================
+:mod:`mpi_util` -- MPI utility functions for Platoon's classes
+==============================================================
 
 .. module:: util
    :platform: Unix
-   :synopsis: Contains methods :fun:`op_to_mpi` and :fun:`dtype_to_mpi`,
-      if mpi4py is found.
+   :synopsis: Contains conversion functions and worker spawning through MPI.
 
 """
 import numpy
@@ -16,6 +15,33 @@ try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
+
+from util import shape_args
+
+
+def launch_mpi_workers(workers_count, experiment_name, args, devices):
+    """
+    Helper function for spawning dynamically a Platoon subprocess (usually a
+    worker) in multi-node MPI environment.
+    """
+    if MPI is None:
+        raise ImportError("No module named 'mpi4py'")
+    import socket
+    args = [shape_args(experiment_name, args, "worker") +
+            ["--device", device] for device in devices]
+    info = MPI.Info.Create()
+    info['host'] = socket.gethostname()
+    info['ompi_non_mpi'] = 'true'
+    info['env'] = 'THEANO_FLAGS'
+    errcodes = []
+    intercomm = MPI.COMM_SELF.Spawn_multiple(
+        [sys.executable] * workers_count, args,
+        [1] * workers_count, [info] * workers_count,
+        root=0, errcodes=errcodes)
+    info.Free()
+    if any(numpy.asarray(errcodes) != MPI.SUCCESS):
+        raise PlatoonError("MPI spawn multi error codes: {0}\nArgs passed: {1}".format(errcodes, args))
+    return intercomm
 
 
 if MPI:
@@ -58,7 +84,7 @@ def op_to_mpi(op):
     types.
     """
     if MPI is None:
-        raise AttributeError("mpi4py is not imported")
+        raise ImportError("No module named 'mpi4py'")
     res = GA_TO_MPI_OP.get(op.lower())
     if res is not None:
         return res
@@ -70,7 +96,7 @@ def dtype_to_mpi(dtype):
     Converts numpy datatypes to MPI datatypes.
     """
     if MPI is None:
-        raise AttributeError("mpi4py is not imported")
+        raise ImportError("No module named 'mpi4py'")
     res = NP_TO_MPI_TYPE.get(numpy.dtype(dtype))
     if res is not None:
         return res

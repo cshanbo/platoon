@@ -85,29 +85,6 @@ def launch_process(logs_folder, experiment_name, args, device,
     return process
 
 
-def launch_mpi_workers(workers_count, experiment_name, args, devices):
-    """
-    Helper function for spawning dynamically a Platoon subprocess (usually a
-    worker) in multi-node MPI environment.
-    """
-    import socket
-    args = [shape_args(experiment_name, args, "worker") +
-            ["--device", device] for device in devices]
-    info = MPI.Info.Create()
-    info['host'] = socket.gethostname()
-    info['ompi_non_mpi'] = 'true'
-    info['env'] = 'THEANO_FLAGS'
-    errcodes = []
-    intercomm = MPI.COMM_SELF.Spawn_multiple(
-        [sys.executable] * workers_count, args,
-        [1] * workers_count, [info] * workers_count,
-        root=0, errcodes=errcodes)
-    info.Free()
-    if any(numpy.asarray(errcodes) != MPI.SUCCESS):
-        raise PlatoonError("MPI spawn multi error codes: {0}\nArgs passed: {1}".format(errcodes, args))
-    return intercomm
-
-
 def shape_args(experiment_name, args, process_type):
     """
     Returns a proper list of arguments that will spawn a process

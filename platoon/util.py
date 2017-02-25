@@ -91,7 +91,7 @@ def launch_process(logs_folder, experiment_name, args, device,
     return process
 
 
-def launch_mpi_workers(myself, experiment_name, args, devices):
+def launch_mpi_workers(workers_count, experiment_name, args, devices):
     """
     Helper function for spawning dynamically a Platoon subprocess (usually a
     worker) in multi-node MPI environment.
@@ -105,8 +105,8 @@ def launch_mpi_workers(myself, experiment_name, args, devices):
     info['env'] = 'THEANO_FLAGS'
     errcodes = []
     intercomm = MPI.COMM_SELF.Spawn_multiple(
-        [sys.executable] * myself._local_size, args,
-        [1] * myself._local_size, [info] * myself._local_size,
+        [sys.executable] * workers_count, args,
+        [1] * workers_count, [info] * workers_count,
         root=0, errcodes=errcodes)
     info.Free()
     if any(numpy.asarray(errcodes) != MPI.SUCCESS):

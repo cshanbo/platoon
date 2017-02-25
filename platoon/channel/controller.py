@@ -171,8 +171,8 @@ class Controller(object):
                 # compatibility. See
                 # https://www.open-mpi.org/faq/?category=openfabrics#ofa-fork
                 try:
-                    self._workers_comm = launch_mpi_workers(self, experiment_name, worker_args,
-                                                            self._devices)
+                    self._workers_comm = launch_mpi_workers(self._local_size, experiment_name,
+                                                            worker_args, self._devices)
                     # TODO How can we take control of separate procs inside a group
                 except Exception as exc:
                     print("ERROR! While spawning workers through MPI: {}".format(exc),

@@ -34,7 +34,7 @@ def launch_mpi_workers(workers_count, experiment_name, worker_args):
     args = shape_args(experiment_name, worker_args, "worker")
     info = MPI.Info.Create()
     info['host'] = socket.gethostname()
-    info['ompi_non_mpi'] = 'true'
+    #  info['ompi_non_mpi'] = 'true'
     env = dict(os.environ)
     info['env'] = '\n'.join(env.keys())
     errcodes = []

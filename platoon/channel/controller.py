@@ -104,6 +104,7 @@ class Controller(object):
 
         # If we are starting a multi-node training
         self._multinode = multi
+        self._singlenode = not self._multinode
         if self._multinode:
             print("## Running in multi-node mode.")
             try:
@@ -154,7 +155,7 @@ class Controller(object):
                 worker_args += " --data-port=%d" % data_port
             worker_args = shlex.split(worker_args)
 
-            if not self._multinode:  # then fork subprocesses
+            if self._singlenode:  # then fork subprocesses
                 try:
                     for device in self._devices:
                         p = launch_process(log_directory, experiment_name,
@@ -176,8 +177,7 @@ class Controller(object):
                     self._workers_comm = launch_mpi_workers(self._local_size,
                                                             experiment_name,
                                                             worker_args)
-                    # TODO How can we take control of separate procs inside a group
-                    # TODO Manage these workers, how does controller finish?
+                    self._workers = set(range(self._local_size))
                 except Exception as exc:
                     print("ERROR! While spawning workers through MPI: {}".format(exc),
                           file=sys.stderr)
@@ -248,39 +248,10 @@ class Controller(object):
         elif req == "platoon-all_reduce":
             response = self._all_reduce(req_info)
 
+        elif req == "platoon-finish":
+            response = self._remove_worker(req_info)
+
         return response
-
-    def worker_is_done(self, worker_id):
-        """
-        This method is not supported anymore.
-
-        Rationale
-        ---------
-        1. For supporting multi-node controllers it was necessary to move the
-           spawning of worker process to :class:`Controller` object, so
-           :class:`Controller` needs to wait for the exit of its worker
-           children. This was done for the following reasons:
-
-           * Controller processes may be MPI processes, while worker processes
-              are not.
-           * In multi-node case, worker processes have to be spawned in a
-             another host than the one executing the launcher.
-           * It would be better, if there was a uniform way to spawn worker
-             process which is independent whether we are in the single-node or
-             multi-node case.
-
-        2. Given (1): Each process ought to take care cleaning and exiting
-           gracefully by itself, unless a fatal error has happened or a
-           irrecoverable error for the procedure has happened, in which case
-           process should exit normally with non-success code. In fatal or
-           irrecoverable cases, their parent process (i.e controller) must kill
-           them (forcing them to exit gracefully, if possible).
-
-        .. deprecated:: 0.6.0
-           A worker process should exit normally instead. It is not needed
-           to signal to its controller that it has finished.
-        """
-        self._should_stop = True
 
     def serve(self):
         """This method will handle control messages until an error happens or
@@ -291,33 +262,39 @@ class Controller(object):
 
         """
         try:  # spin spin spin
-            self._success = 2
+            self._success = 0
             while self._workers:  # spin while we have still children to watch for
-                try:
-                    pid, status = os.waitpid(-1, os.WNOHANG)
-                except OSError as exc:
-                    raise PlatoonError("while waiting for a child", exc)
-                if pid != 0:  # If a status change has happened at a child
-                    if os.WIFEXITED(status):
-                        self._workers.discard(pid)
-                        self._success = os.WEXITSTATUS(status)
-                        if self._success == 0:
-                            # A worker has terminated normally. Other workers
-                            # are expected to terminate normally too, so
-                            # continue.
-                            continue
-                        else:
-                            # A worker has not terminated normally due to an
-                            # error or an irrecoverable fault
-                            raise PlatoonError("A worker has exited with non-success code: {}".format(self._success))
-                    else:  # other status changes are not desirable
-                        raise PlatoonError("A worker has changed to a status other than exit.")
-                try:
-                    query = self.csocket.recv_json(flags=zmq.NOBLOCK)
-                except zmq.Again:  # if a query has not happened, try again
-                    continue
-                except zmq.ZMQError as exc:
-                    raise PlatoonError("while receiving using ZMQ socket", exc)
+                if self._singlenode:
+                    try:
+                        pid, status = os.waitpid(-1, os.WNOHANG)
+                    except OSError as exc:
+                        raise PlatoonError("while waiting for a child", exc)
+                    if pid != 0:  # If a status change has happened at a child
+                        if os.WIFEXITED(status):
+                            self._workers.discard(pid)
+                            self._success = os.WEXITSTATUS(status)
+                            if self._success == 0:
+                                # A worker has terminated normally. Other workers
+                                # are expected to terminate normally too, so
+                                # continue.
+                                continue
+                            else:
+                                # A worker has not terminated normally due to an
+                                # error or an irrecoverable fault
+                                raise PlatoonError("A worker has exited with non-success code: {}".format(self._success))
+                        else:  # other status changes are not desirable
+                            raise PlatoonError("A worker has changed to a status other than exit.")
+                    try:
+                        query = self.csocket.recv_json(flags=zmq.NOBLOCK)
+                    except zmq.Again:  # if a query has not happened, try again
+                        continue
+                    except zmq.ZMQError as exc:
+                        raise PlatoonError("while receiving using ZMQ socket", exc)
+                else:
+                    try:
+                        query = self.csocket.recv_json()
+                    except zmq.ZMQError as exc:
+                        raise PlatoonError("while receiving using ZMQ socket", exc)
 
                 # try default interface, it may raise PlatoonError
                 response = self._handle_base_control(query['req'],
@@ -392,7 +369,8 @@ class Controller(object):
 
         """
         print("Cleaning up...", file=sys.stderr)
-        self._kill_workers()
+        if self._singlenode:
+            self._kill_workers()
         if self._multinode and self._region_comm:
             print("Aborting MPI job...", file=sys.stderr)
             self._region_comm.Abort(errorcode=1)
@@ -451,13 +429,42 @@ class Controller(object):
         """
         print("Caught signal {}. Killing workers and closing connections...".format(
               signum), file=sys.stderr)
-        self._kill_workers()
+        if self._singlenode:
+            self._kill_workers()
+        if self._multinode and self._region_comm:
+            self._workers_comm.Abort()
         self._close()
         sys.exit(1)
 
 ################################################################################
 #                               Control Requests                               #
 ################################################################################
+
+    def _remove_worker(self, req_info):
+        """
+        A worker process wants to exit. If it exits normally, then remove its
+        id from set of active workers, else abort procedure.
+
+        .. note: Called automatically when one uses worker with `with` clause.
+
+        Parameters
+        ----------
+        req_info : dict
+           request info from individual :class:`Worker`.
+
+        req_info
+        --------
+        * *worker_id* : str
+           Requesting :class:`Worker`'s process id in a single-node scenario,
+           its local rank in a multi-node scenario.
+        * *success* : str
+           True, if worker is exiting normally.
+
+        """
+        self._workers.discard(req_info['worker_id'])
+        if not req_info['success']:
+            raise PlatoonError("A worker exits non-successfully.")
+        return ""  # So as to show that request type has been found
 
     def _is_worker_first(self, counter):
         """

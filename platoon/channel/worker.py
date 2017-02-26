@@ -45,6 +45,10 @@ try:
     from pygpu import collectives as gpucoll
 except ImportError:
     pygpu = None
+try:
+    from mpi4py import MPI
+except ImportError:
+    MPI = None
 
 from ..util import (mmap, PlatoonError, PlatoonWarning, SingletonType)
 
@@ -108,6 +112,8 @@ class Worker(object):
         self._lock = posix_ipc.Semaphore("{}_lock".format(self._job_uid))
 
         signal.signal(signal.SIGINT, self._handle_force_close)
+        signal.signal(signal.SIGTERM, self._handle_force_close)
+
         try:
             self._register_to_platoon()
         except Exception as exc:
@@ -216,8 +222,24 @@ class Worker(object):
 #                   Initialization and Finalization Methods                    #
 ################################################################################
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self._multinode:
+            success = True
+            if exc_type is not None:
+                success = False
+            self.send_req("platoon-finish", info={'worker_id': self._local_rank,
+                                                  'success': success})
+            try:
+                self.close()
+            except Exception:
+                pass
+            return False
+
     def _handle_force_close(self, signum, frame):
-        """Handle SIGINT signals from Controller.
+        """Handle SIGINT and SIGTERM signals from Controller.
 
         This is expected to happen when something abnormal has happened in other
         workers which implies that training procedure should stop and fail.
@@ -694,4 +716,4 @@ class Worker(object):
 
 
 __default_args = Worker.default_parser().parse_known_args()[0].__dict__
-PlatoonWorker = Worker(**__default_args)
+__platoon_worker = Worker(**__default_args)

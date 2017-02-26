@@ -95,7 +95,7 @@ class Worker(object):
        operations. Used by :meth:`all_reduce` interface.
 
     """
-    def __init__(self, control_port, data_port=None, socket_timeout=300000,
+    def __init__(self, control_port=5567, data_port=None, socket_timeout=300000,
                  data_hwm=10, port=None):
         if port is not None:
             raise RuntimeError(
@@ -323,7 +323,7 @@ class Worker(object):
         self.asocket = self.context.socket(zmq.PULL)
         self.asocket.setsockopt(zmq.LINGER, 0)
         self.asocket.set_hwm(data_hwm)
-        self.asocket.connect("tcp://*:{}".format(port))
+        self.asocket.connect("tcp://localhost:{}".format(port))
 
         self.apoller = zmq.Poller()
         self.apoller.register(self.asocket, zmq.POLLIN)
@@ -678,12 +678,12 @@ class Worker(object):
             description="Base Platoon Worker process.")
         parser.add_argument('--control-port', default=5567, type=int, required=False, help='The control port number.')
         parser.add_argument('--data-port', type=int, required=False, help='The data port number.')
+        parser.add_argument('--socket-timeout', default=300000, type=int, required=False, help='Timeout in ms for both control and data sockets. Default: 5 min')
         parser.add_argument('--data-hwm', default=10, type=int, required=False, help='The data port high water mark.')
-        parser.add_argument('--device', default=None, type=str, required=False, help='Alternative way to define worker\'s device in Platoon.')
         return parser
 
     @staticmethod
-    def default_arguments(args):
+    def default_arguments(args=None):
         """
         Static method which returns the correct arguments for a base
         :class:`Controller` class.
@@ -695,6 +695,8 @@ class Worker(object):
         .. versionadded:: 0.6.0
 
         """
-        DEFAULT_KEYS = ['control_port', 'data_hwm', 'data_port']
-        d = args.__dict__
-        return dict((k, d[k]) for k in six.iterkeys(d) if k in DEFAULT_KEYS)
+        return __default_args
+
+
+__default_args = Worker.default_parser().parse_known_args()[0].__dict__
+PlatoonWorker = Worker(**__default_args)

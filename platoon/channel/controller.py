@@ -366,7 +366,7 @@ class Controller(object):
 
         """
         if MPI is None:
-            raise AttributeError("mpi4py is not imported")
+            raise ImportError("No module named 'mpi4py'")
 
         self._region_comm = MPI.COMM_WORLD
         self._region_size = MPI.COMM_WORLD.Get_size()

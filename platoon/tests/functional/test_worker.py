@@ -8,7 +8,7 @@ from pygpu import gpuarray
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-from platoon.channel import Worker
+from platoon.channel.worker import Worker
 
 
 class TestWorker(unittest.TestCase):
@@ -113,6 +113,7 @@ class TestWorker(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.worker.close()
+
 
 if __name__ == '__main__':
     print("### Beginning Worker's tests...")

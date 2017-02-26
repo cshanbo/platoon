@@ -3,14 +3,14 @@ import os
 import sys
 
 import unittest
-
-import theano
-from theano import config
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 from platoon.training import global_dynamics as gd
 from platoon.channel.worker import Worker
+print("After Platoon, before Theano")
+import theano
+from theano import config
 
 
 class TestGlobalDynamicsWorker(unittest.TestCase):

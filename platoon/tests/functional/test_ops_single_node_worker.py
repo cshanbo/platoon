@@ -4,13 +4,13 @@ import sys
 
 import unittest
 import numpy as np
+import theano
+from theano import config
 
+print("After Theano, before Platoon")
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 from platoon.channel.worker import Worker
 from platoon import ops
-print("After Platoon, before Theano")
-import theano
-from theano import config
 
 
 class TestOpsWorker(unittest.TestCase):

@@ -1,8 +1,8 @@
 To functional test the *all_reduce* worker interface, you need to:
 
 1. Export the environmental variable `PLATOON_TEST_WORKERS_NUM` to be equal to
-   the total number of workers (GPUs) to be spawned across hosts in the
-   functional test.
+   the total number of workers (GPUs) expected to be spawned across hosts during
+   the functional test.
 2. Call `platoon-launcher test` to start the test while being in the same
    directory as `test_worker.py` file. You can configure the multi-GPU/node
    procedure in any possible way as long as the total number of workers, which

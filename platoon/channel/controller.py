@@ -94,6 +94,7 @@ class Controller(object):
             self._devices = Controller.get_workers_devices(devices)
         self._local_size = len(self._devices)
         self._global_size = self._local_size
+        self._get_device_count = [0]
         self._get_platoon_info_count = [0]
         self._init_new_shmem_count = [0]
         self._am_i_first_count = [0]
@@ -176,7 +177,7 @@ class Controller(object):
                                                             experiment_name,
                                                             worker_args)
                     # TODO How can we take control of separate procs inside a group
-                    # TODO Manage these workers
+                    # TODO Manage these workers, how does controller finish?
                 except Exception as exc:
                     print("ERROR! While spawning workers through MPI: {}".format(exc),
                           file=sys.stderr)
@@ -233,6 +234,10 @@ class Controller(object):
 
         elif req == "platoon-am_i_first":
             response = self._is_worker_first(self._am_i_first_count)
+
+        elif req == "platoon-get_device":
+            response = self._devices[self._get_device_count[0]]
+            self._is_worker_first(self._get_device_count)
 
         elif req == "platoon-get_platoon_info":
             response = self._get_platoon_info(req_info)

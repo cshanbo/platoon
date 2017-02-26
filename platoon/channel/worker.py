@@ -54,15 +54,6 @@ else:
     buffer_ = buffer  # noqa
 
 
-# Setup environmental variables which configure Theano, before she is imported
-# in the worker process (This will probably set also Theano flags for
-# controller processes, but Theano should not be imported in controllers)
-if len(sys.argv) > 1 and sys.argv[-2] == '--device':
-    DEVICE = sys.argv[-1]
-    THEANO_FLAGS = '{0},device={1}'.format(os.getenv('THEANO_FLAGS', ''), DEVICE)
-    os.environ['THEANO_FLAGS'] = THEANO_FLAGS
-
-
 @six.add_metaclass(SingletonType)
 class Worker(object):
     """
@@ -282,12 +273,16 @@ class Worker(object):
 
         """
         if pygpu:
+            self.device = self.send_req("platoon-get_device")
+            THEANO_FLAGS = '{0},device={1}'.format(os.getenv('THEANO_FLAGS', ''),
+                                                   self.device)
+            os.environ['THEANO_FLAGS'] = THEANO_FLAGS
+
             from theano import gpuarray as theanoga
             from theano import config as theanoconf
 
             self.ctx_name = None
             self.gpuctx = theanoga.get_context(self.ctx_name)
-            self.device = theanoconf.device
             self._local_id = gpucoll.GpuCommCliqueId(context=self.gpuctx)
             # Ask controller for local's info to participate in
             response = self.send_req("platoon-get_platoon_info",

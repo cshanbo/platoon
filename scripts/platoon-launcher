@@ -89,7 +89,7 @@ multi-node.'''))
 if __name__ == '__main__':
     args = parse_arguments()
 
-    logs_folder = os.path.join("PLATOON_LOGS", args.experiment_name, time.strftime("%Y-%m-%d_%H-%M-%S"))
+    logs_folder = os.path.join("PLATOON_LOGS", args.experiment_name)
     os.makedirs(logs_folder)
 
     print("### Launching experiment: {}".format(args.experiment_name))
@@ -120,12 +120,11 @@ if __name__ == '__main__':
         env = dict(os.environ)
         theano_flags = "THEANO_FLAGS={0},device={1}".format(env.pop('THEANO_FLAGS', ''), "cpu")
         command = ["mpirun"]
-        # command += ["--output-filename", log_file.format("log")]
         command += ["-mca", "mpi_warn_on_fork", "0"]
-        #  command += ["--oversubscribe"]
+        command += ["--oversubscribe"]
         command += ["-np", str(len(hosts))]
         command += ["-H", ','.join(hosts)]
-        command += ["--map-by", "ppr:1:node"]
+        command += ["--output-filename", log_file.format("log")]
         command += shlex.split("-x " + " -x ".join(env.keys()) + " -x " + theano_flags)
         if controller_type == "platoon":
             executable = ["-m", "platoon.channel.controller"]

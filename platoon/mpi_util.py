@@ -35,7 +35,8 @@ def launch_mpi_workers(workers_count, experiment_name, worker_args):
     info = MPI.Info.Create()
     info['host'] = socket.gethostname()
     env = dict(os.environ)
-    info.Set(key='env', value='\n'.join('%s=%s' % (key, env[key]) for key in env))
+    keep_list = ['THEANO_FLAGS', 'PLATOON_TEST_WORKERS_NUM', '_']
+    info.Set(key='env', value='\n'.join('%s=%s' % (key, env[key]) for key in keep_list if key in env))
     errcodes = []
     intercomm = MPI.COMM_SELF.Spawn(sys.executable, args, workers_count,
                                     info, root=0, errcodes=errcodes)

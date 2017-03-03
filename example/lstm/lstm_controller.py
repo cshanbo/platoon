@@ -6,7 +6,7 @@ import time
 import numpy
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from platoon.channel import Controller
+from platoon.channel.controller import Controller
 
 
 class LSTMController(Controller):

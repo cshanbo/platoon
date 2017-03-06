@@ -638,7 +638,7 @@ class Controller(object):
         try:
             mpi_op = op_to_mpi(op)
             mpi_dtype = dtype_to_mpi(dtype)
-            self._region_comm.Allreduce([array, mpi_dtype], [array, mpi_dtype],
+            self._region_comm.Allreduce(MPI.IN_PLACE, [array, mpi_dtype],
                                         op=mpi_op)
         except Exception as exc:
             raise PlatoonError("Failed to execute all_reduce across nodes on \

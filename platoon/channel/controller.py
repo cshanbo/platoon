@@ -136,7 +136,7 @@ class Controller(object):
 
         # Init dictionaries for shared buffers with workers
         self._shmrefs = dict()
-        self.shared_buffers = dict()
+        self.shared_arrays = dict()
 
         # Initialize workers
         if experiment_name:
@@ -573,17 +573,17 @@ class Controller(object):
         first = self._is_worker_first(self._init_new_shmem_count)  # See :meth:`_is_worker_first`
         if first:
             self._last_shmem_name = "platoon-{0}_{1}_buffer".format(self._job_uid,
-                                                                    len(self.shared_buffers))
+                                                                    len(self.shared_arrays))
             try:
                 posix_ipc.unlink_shared_memory(self._last_shmem_name)
             except posix_ipc.ExistentialError:
                 pass
 
-            size = req_info['size']
+            bytesize = req_info['bytesize']
             try:
                 shmref = posix_ipc.SharedMemory(self._last_shmem_name,
                                                 posix_ipc.O_CREAT,
-                                                size=size)
+                                                size=bytesize)
                 shm = mmap(fd=shmref.fd, length=size)
                 shmref.close_fd()
             except Exception as exc:
@@ -592,12 +592,14 @@ class Controller(object):
                 except (NameError, posix_ipc.ExistentialError):
                     pass
                 raise PlatoonError("Failed to initialize new shared buffer.", exc)
-            # We want every worker to get the same shared memory name that is
+            # We want every worker to get the same shared memory name that
             # was declared in the first call of a mass request to this
             # controller for initializing a new shared memory.
-            self._shmrefs[self._last_shmem_name] = shmref
             # Keep for unlinking when closing
-            self.shared_buffers[self._last_shmem_name] = shm
+            self._shmrefs[self._last_shmem_name] = shmref
+            shared_array = numpy.ndarray((req_info['size'], ), req_info['dtype'],
+                                         buffer=shm, offset=0, order=req_info['order'])
+            self.shared_arrays[self._last_shmem_name] = shared_array
         return self._last_shmem_name
 
     def _all_reduce(self, req_info):
@@ -632,7 +634,7 @@ class Controller(object):
             raise PlatoonError("`all_reduce` request is not available. Check log.")
         dtype = req_info['dtype']
         op = req_info['op']
-        array = self.shared_buffers[req_info['shmem']]
+        array = self.shared_arrays[req_info['shmem']]
         try:
             mpi_op = op_to_mpi(op)
             mpi_dtype = dtype_to_mpi(dtype)

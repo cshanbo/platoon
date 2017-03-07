@@ -426,7 +426,7 @@ class Worker(object):
                 shared_mem_name = self.send_req("platoon-init_new_shmem",
                                                 info={'bytesize': bytesize,
                                                       'size': array.size,
-                                                      'dtype': array.dtype,
+                                                      'dtype': str(array.dtype),
                                                       'order': order})
 
                 shmref = posix_ipc.SharedMemory(shared_mem_name)

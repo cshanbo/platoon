@@ -584,7 +584,7 @@ class Controller(object):
                 shmref = posix_ipc.SharedMemory(self._last_shmem_name,
                                                 posix_ipc.O_CREAT,
                                                 size=bytesize)
-                shm = mmap(fd=shmref.fd, length=size)
+                shm = mmap(fd=shmref.fd, length=bytesize)
                 shmref.close_fd()
             except Exception as exc:
                 try:

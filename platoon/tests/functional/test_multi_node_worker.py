@@ -110,9 +110,6 @@ class TestWorker(unittest.TestCase):
         actual = np.asarray(sout)
         assert np.allclose(expected, actual)
 
-    def testDefaultArgument(self):
-        return Worker.default_arguments()
-
     @classmethod
     def tearDownClass(cls):
         return

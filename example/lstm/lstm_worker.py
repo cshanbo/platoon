@@ -654,7 +654,7 @@ if __name__ == '__main__':
     parser.add_argument('--param-sync-api', action='store_true', default=False)
     args = parser.parse_args()
 
-    worker = Worker(**Worker.default_arguments(args))
+    worker = Worker(**(args.__dict__))
     # Set the random number generators' seeds for consistency
     # Each worker **MUST** be seeded with a different number, so that
     # they do not draw the same minibatches!

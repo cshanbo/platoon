@@ -112,7 +112,7 @@ class TestWorker(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.worker.close()
+        return
 
 
 if __name__ == '__main__':

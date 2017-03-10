@@ -59,7 +59,7 @@ class TestWorker(unittest.TestCase):
         assert np.allclose(expected, actual)
 
     def test_linked_shared(self):
-        inp = np.arange(32, dtype='float64')
+        inp = np.arange(64, dtype='float64')
         sinp = gpuarray.asarray(inp, context=self.ctx)
         insize = sinp.size * sinp.itemsize
         out = np.empty_like(inp)
@@ -69,12 +69,12 @@ class TestWorker(unittest.TestCase):
         if self.worker._multinode:
             try:
                 self.worker.shared_arrays[outsize]
-                # self.fail("'sout''s size has not been linked yet to a shared buffer")
+                self.fail("'sout''s size has not been linked yet to a shared buffer")
             except KeyError:
                 pass
             try:
                 self.worker.shared_arrays[insize]
-                # self.fail("'sinp''s size has not been linked yet to a shared buffer")
+                self.fail("'sinp''s size has not been linked yet to a shared buffer")
             except KeyError:
                 pass
 

@@ -595,7 +595,9 @@ def train_lstm(
             else:
                 algorithm()
                 if update_algorithm != 'EASGD':
-                    tparams[kk].set_value(vv.get_value() + cparams[kk].get_value())
+                    tparams = cparams
+                # if update_algorithm != 'EASGD':
+                #     tparams[kk].set_value(vv.get_value() + cparams[kk].get_value())
         """
         if step.startswith('save '):
             _, saveto = step.split(' ', 1)

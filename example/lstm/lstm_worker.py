@@ -525,13 +525,13 @@ def train_lstm(
         list_cparams = list(cparams.values())
         if update_algorithm == 'EASGD':
             algorithm = gd.EASGD(worker)
-            algorithm.make_rule(list_tparams, list_cparams, 0.5)
+            algorithm.make_rule(list_tparams, tist_cparams, 0.5)
         elif update_algorithm == 'AverageSGD':
             algorithm = gd.AverageSGD(worker)
-            algorithm.make_rule(list_cparams)
+            algorithm.make_rule(list_tparams)
         else:
             algorithm = gd.SumSGD(worker)
-            algorithm.make_rule(list_cparams)
+            algorithm.make_rule(list_tparams)
     print("Params init done")
 
     # use_noise is for dropout
@@ -594,8 +594,8 @@ def train_lstm(
                 worker.sync_params(synchronous=True)
             else:
                 algorithm()
-                if update_algorithm != 'EASGD':
-                    tparams = cparams
+                # if update_algorithm != 'EASGD':
+                #     tparams = cparams
                 # if update_algorithm != 'EASGD':
                 #     tparams[kk].set_value(vv.get_value() + cparams[kk].get_value())
         """

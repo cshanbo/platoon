@@ -476,7 +476,8 @@ def train_lstm(
     reload_model=None,  # Path to a saved model we want to start from.
     test_size=-1,  # If >0, we keep only this number of test example.
     valid_sync=False,
-    param_sync_api=False
+    param_sync_api=False, 
+    update_algorithm='EASGD'
 ):
 
     # Model options
@@ -513,18 +514,27 @@ def train_lstm(
     # Dict name (string) -> Theano Tensor Shared Variable
     # params and tparams have different copy of the weights.
     tparams = init_tparams(params)
-
+    cparams = init_tparams(params)
     list_tparams = list(tparams.values())
+    # local updates if using SumSGD or AverageSGD
+    list_cparams = list(cparams.values())
     if param_sync_api:
         print("Using param_sync worker's interface!")
         worker.init_shared_params(list_tparams, param_sync_rule=EASGD(0.5))
     else:
         print("Using all_reduce worker's interface!")
         from platoon.training import global_dynamics as gd
-        cparams = init_tparams(params)
-        list_cparams = list(cparams.values())
-        easgd = gd.EASGD(worker)
-        easgd.make_rule(list_tparams, list_cparams, 0.5)
+        # cparams = init_tparams(params)
+        # list_cparams = list(cparams.values())
+        if update_algorithm == 'EASGD':
+            algorithm = gd.EASGD(worker)
+            algorithm.make_rule(list_tparams, list_cparams, 0.5)
+        elif update_algorithm == 'AverageSGD':
+            algorithm = gd.AverageSGD(worker)
+            algorithm.make_rule(list_cparams)
+        else:
+            algorithm = gd.SumSGD(worker)
+            algorithm.make_rule(list_cparams)
     print("Params init done")
 
     # use_noise is for dropout
@@ -586,7 +596,9 @@ def train_lstm(
             if param_sync_api:
                 worker.sync_params(synchronous=True)
             else:
-                easgd()
+                algorithm()
+                if update_algorithm != 'EASGD':
+                    list_tparams += list_cparams
 
         """
         if step.startswith('save '):
@@ -652,6 +664,9 @@ if __name__ == '__main__':
     parser = Worker.default_parser()
     parser.add_argument('--valid_sync', dest='valid_sync', action='store_true', default=False)
     parser.add_argument('--param-sync-api', action='store_true', default=False)
+    parser.add_argument('--update-algorithm', type=str, default='EASGD',
+                         choices=['AverageSGD', 'SumSGD', 'EASGD'],
+                         help='Synchronous updating algorithm for multi-node')
     args = parser.parse_args()
 
     worker = Worker(**(args.__dict__))
@@ -662,4 +677,4 @@ if __name__ == '__main__':
     numpy.random.seed(SEED + worker.global_rank)
 
     train_lstm(valid_sync=args.valid_sync, test_size=500,
-               param_sync_api=args.param_sync_api)
+               param_sync_api=args.param_sync_api, update_algorithm=args.update_algorithm)

@@ -514,27 +514,27 @@ def train_lstm(
     # Dict name (string) -> Theano Tensor Shared Variable
     # params and tparams have different copy of the weights.
     tparams = init_tparams(params)
-    # cparams = init_tparams(params)
+    cparams = init_tparams(params)
     list_tparams = list(tparams.values())
     # local updates if using SumSGD or AverageSGD
-    # list_cparams = list(cparams.values())
+    list_cparams = list(cparams.values())
     if param_sync_api:
         print("Using param_sync worker's interface!")
         worker.init_shared_params(list_tparams, param_sync_rule=EASGD(0.5))
     else:
         print("Using all_reduce worker's interface!")
         from platoon.training import global_dynamics as gd
-        cparams = init_tparams(params)
-        list_cparams = list(cparams.values())
+        # cparams = init_tparams(params)
+        # list_cparams = list(cparams.values())
         if update_algorithm == 'EASGD':
             algorithm = gd.EASGD(worker)
             algorithm.make_rule(list_tparams, list_cparams, 0.5)
         elif update_algorithm == 'AverageSGD':
             algorithm = gd.AverageSGD(worker)
-            algorithm.make_rule(list_tparams)
+            algorithm.make_rule(list_cparams)
         else:
             algorithm = gd.SumSGD(worker)
-            algorithm.make_rule(list_tparams)
+            algorithm.make_rule(list_cparams)
     print("Params init done")
 
     # use_noise is for dropout
@@ -597,8 +597,8 @@ def train_lstm(
                 worker.sync_params(synchronous=True)
             else:
                 algorithm()
-                # if update_algorithm != 'EASGD':
-                #     list_tparams += list_cparams
+                if update_algorithm != 'EASGD':
+                    list_tparams += list_cparams
 
         """
         if step.startswith('save '):

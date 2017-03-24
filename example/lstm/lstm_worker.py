@@ -589,7 +589,7 @@ def train_lstm(
         step = worker.send_req('next')
         print(step)
 
-        if step == 'train':
+        if step == 'train' or (param_sync_api and step == 'sync'):
             use_noise.set_value(numpy_floatX(1.))
             for i in range(train_len):
                 x, mask, y = next(train_it)
@@ -601,12 +601,6 @@ def train_lstm(
             print("Syncing with global params")
             if param_sync_api:
                 worker.sync_params(synchronous=True)
-            else:
-                algorithm()
-                # if update_algorithm != 'EASGD':
-                #     tparams = cparams
-                # if update_algorithm != 'EASGD':
-                #     tparams[kk].set_value(vv.get_value() + cparams[kk].get_value())
         """
         if step.startswith('save '):
             _, saveto = step.split(' ', 1)
@@ -616,6 +610,10 @@ def train_lstm(
             pkl.dump(model_options, open('%s.pkl' % saveto, 'wb'), -1)
             print 'Done'
         """
+        # multi-node scenario
+        # syncing params across all workers
+        if step == 'sync':
+            algorithm()
 
         if step == 'valid':
             if param_sync_api and valid_sync:

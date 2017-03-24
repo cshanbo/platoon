@@ -37,7 +37,10 @@ def get_minibatches_idx(n, minibatch_size, shuffle=False):
     """
     Used to shuffle the dataset at each iteration.
     """
-
+    
+    # Diffrent nodes should NOT use the same
+    # mini-batches at the same time when training
+    numpy.random.seed(SEED + worker.global_rank)
     idx_list = numpy.arange(n, dtype="int32")
 
     if shuffle:
@@ -99,6 +102,8 @@ def init_params(options):
     """
     params = OrderedDict()
     # embedding
+    # Different nodes should share the same initial params
+    numpy.random.seed(SEED)
     randn = numpy.random.rand(options['n_words'],
                               options['dim_proj'])
     params['Wemb'] = (0.01 * randn).astype(config.floatX)
@@ -147,6 +152,8 @@ def param_init_lstm(options, params, prefix='lstm'):
 
     :see: init_params
     """
+    # Different nodes should share the same initial params
+    numpy.random.seed(SEED)
     W = numpy.concatenate([ortho_weight(options['dim_proj']),
                            ortho_weight(options['dim_proj']),
                            ortho_weight(options['dim_proj']),
@@ -477,7 +484,8 @@ def train_lstm(
     test_size=-1,  # If >0, we keep only this number of test example.
     valid_sync=False,
     param_sync_api=False, 
-    update_algorithm='EASGD'
+    update_algorithm='EASGD', 
+    seed=0
 ):
 
     # Model options
@@ -505,6 +513,7 @@ def train_lstm(
     print('Building model')
     # This create the initial parameters as numpy ndarrays.
     # Dict name (string) -> numpy ndarray
+
     params = init_params(model_options)
 
     if reload_model:
@@ -665,14 +674,12 @@ if __name__ == '__main__':
     parser.add_argument('--update-algorithm', type=str, default='EASGD',
                          choices=['AverageSGD', 'SumSGD', 'EASGD'],
                          help='Synchronous updating algorithm for multi-node')
+    parser.add_argument('--random-seed', type=int, default=0, 
+                         help='random seed for fetching mini-batches')
     args = parser.parse_args()
 
     worker = Worker(**(args.__dict__))
-    # Set the random number generators' seeds for consistency
-    # Each worker **MUST** be seeded with a different number, so that
-    # they do not draw the same minibatches!
-    SEED = 123
-    numpy.random.seed(SEED + worker.global_rank)
-
+    SEED = args.random_seed
     train_lstm(valid_sync=args.valid_sync, test_size=500,
-               param_sync_api=args.param_sync_api, update_algorithm=args.update_algorithm)
+               param_sync_api=args.param_sync_api, update_algorithm=args.update_algorithm
+               seed=SEED)

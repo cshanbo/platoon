@@ -118,7 +118,7 @@ if __name__ == '__main__':
         print("### Starting multi-node/gpu training on: {} ...".format(' '.join(hosts)), end=' ')
         log_file = os.path.join(logs_folder, "multi-node-controllers.{}")
         env = dict(os.environ)
-        theano_flags = "THEANO_FLAGS={0},device={1}".format(env.pop('THEANO_FLAGS', ''), "cuda")
+        theano_flags = "THEANO_FLAGS={0}".format(env.pop('THEANO_FLAGS', ''))
         command = ["mpirun"]
         command += ["-mca", "mpi_warn_on_fork", "0"]
         command += ["--oversubscribe"]

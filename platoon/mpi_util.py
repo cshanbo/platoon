@@ -23,7 +23,7 @@ except ImportError:
 from .util import shape_args
 
 
-def launch_mpi_workers(workers_count, experiment_name, worker_args):
+def launch_mpi_workers(workers_count, experiment_name, worker_args, devices):
     """
     Helper function for spawning dynamically a Platoon subprocess (usually a
     worker) in multi-node MPI environment.
@@ -32,11 +32,11 @@ def launch_mpi_workers(workers_count, experiment_name, worker_args):
         raise ImportError("No module named 'mpi4py'")
     import socket
     args = shape_args(experiment_name, worker_args, "worker")
+    theano = os.environ['THEANO_FLAGS']
     info = MPI.Info.Create()
     info['host'] = socket.gethostname()
-    env = dict(os.environ)
-    keep_list = ['THEANO_FLAGS', 'PLATOON_TEST_WORKERS_NUM', '_']
-    info.Set(key='env', value='\n'.join('%s=%s' % (key, env[key]) for key in keep_list if key in env))
+    theano_flags = '%s, device=%s' % (theano,  devices[0].strip())
+    info.Set('env', 'THEANO_FLAGS=%s\n' % theano_flags)
     errcodes = []
     intercomm = MPI.COMM_SELF.Spawn(sys.executable, args, workers_count,
                                     info, root=0, errcodes=errcodes)

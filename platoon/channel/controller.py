@@ -176,7 +176,8 @@ class Controller(object):
                 try:
                     self._workers_comm = launch_mpi_workers(self._local_size,
                                                             experiment_name,
-                                                            worker_args)
+                                                            worker_args, 
+                                                            self._devices)
                     self._workers = set(range(self._local_size))
                 except Exception as exc:
                     print("ERROR! While spawning workers through MPI: {}".format(exc),

@@ -10,12 +10,6 @@ import six
 from six import iteritems
 from six.moves import range
 
-import numpy
-import theano
-from theano import config
-import theano.tensor as tensor
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 import os
 
 sys.path.append(os.path.dirname(__file__))
@@ -24,6 +18,12 @@ import imdb
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from platoon.channel.worker import Worker
 from platoon.param_sync import EASGD
+
+import numpy
+import theano
+from theano import config
+import theano.tensor as tensor
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 worker = None
 datasets = {'imdb': (imdb.load_data, imdb.prepare_data)}

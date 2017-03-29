@@ -14,7 +14,7 @@ class LSTMController(Controller):
     This multi-process controller implements patience-based early-stopping SGD
     """
 
-    def __init__(self, max_mb, patience, valid_freq, sync_freq, default_args):
+    def __init__(self, max_mb, patience, valid_freq, default_args):
         """
         Initialize the LSTMController
 
@@ -36,14 +36,12 @@ class LSTMController(Controller):
         self.max_mb = int(max_mb)
 
         self.valid_freq = valid_freq
-        self.sync_freq = sync_freq
         self.uidx = 0
         self.eidx = 0
         self.history_errs = []
         self.bad_counter = 0
 
         self.valid = False
-        self.sync = False
         self.start_time = None
         self._should_stop = False
 
@@ -82,9 +80,6 @@ class LSTMController(Controller):
                 if self.valid:
                     self.valid = False
                     control_response = 'valid'
-                elif self.sync:
-                    self.sync = False
-                    control_response = 'sync'
                 else:
                     control_response = 'train'
             else:
@@ -92,8 +87,6 @@ class LSTMController(Controller):
         elif req == 'done':
             self.uidx += req_info['train_len']
 
-            if numpy.mod(self.uidx, self.sync_freq) == 0:
-                self.sync = True
             if numpy.mod(self.uidx, self.valid_freq) == 0:
                 self.valid = True
         elif req == 'pred_errors':
@@ -126,14 +119,11 @@ def lstm_control(saveFreq=1110, saveto=None):
                         required=False, help='Maximum patience when failing to get better validation results.')
     parser.add_argument('--valid-freq', default=370, type=int,
                         required=False, help='How often in mini-batches prediction function should get validated.')
-    parser.add_argument('--sync-freq', default=100, type=int,
-                        required=False, help='How often to sync')
     args = parser.parse_args()
 
     l = LSTMController(max_mb=args.max_mb,
                        patience=args.patience,
                        valid_freq=args.valid_freq,
-                       sync_freq=args.sync_freq, 
                        default_args=Controller.default_arguments(args))
 
     print("Controller is ready")

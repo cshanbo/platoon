@@ -603,10 +603,6 @@ def train_lstm(
                 worker.sync_params(synchronous=True)
             else:
                 algorithm()
-                # if update_algorithm != 'EASGD':
-                #     tparams = cparams
-                # if update_algorithm != 'EASGD':
-                #     tparams[kk].set_value(vv.get_value() + cparams[kk].get_value())
         """
         if step.startswith('save '):
             _, saveto = step.split(' ', 1)

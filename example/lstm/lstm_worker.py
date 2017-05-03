@@ -534,7 +534,7 @@ def train_lstm(
         list_cparams = list(cparams.values())
         if update_algorithm == 'EASGD':
             algorithm = gd.EASGD(worker)
-            algorithm.make_rule(list_tparams, tist_cparams, 0.5)
+            algorithm.make_rule(list_tparams, list_cparams, 0.5)
         elif update_algorithm == 'AverageSGD':
             algorithm = gd.AverageSGD(worker)
             algorithm.make_rule(list_tparams)

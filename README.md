@@ -56,7 +56,7 @@ Then install what you just cloned.
 ## Usage
 The simplest way to launch a multi-gpu experiment is to first implement a controller and a worker as described below and then launch it using the `platoon-launcher`. It is not necessary that you have implemented a controller file if you want
 
-Note that, we should always import Platoon ****BEFORE* import Theano
+Note that, we should always import Platoon *BEFORE* import Theano
 
 to use the existing controller functionality.
 

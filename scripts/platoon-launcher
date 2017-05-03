@@ -82,15 +82,17 @@ multi-node.'''))
                                  required=False, help='List of host names to participate in multi-node training. Each host will be assigned to a separate controller. If this option is specified, experiment will be run in multiple nodes.')
     parser.add_argument('-c', '--controller-args', required=False, help='The arguments that will be passed to your controllers. (Ex: -c="--sync_rule EASGD")')
     parser.add_argument('-w', '--worker-args', required=False, help='The arguments that will be passed to your workers. (Ex: -w="learning_rate=0.1")')
+    parser.add_argument('-L', '--logs-folder', required=False, help='logs folder')
 
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = parse_arguments()
-
-    logs_folder = os.path.join("PLATOON_LOGS", args.experiment_name, time.strftime("%Y-%m-%d_%H-%M-%S"))
-    os.makedirs(logs_folder)
+    logs_folder = args.logs_folder
+    if not os.path.exists(logs_folder):
+        print('\nMaking directory %s!' % logs_folder)
+        os.makedirs(logs_folder)
 
     print("### Launching experiment: {}".format(args.experiment_name))
 
@@ -116,16 +118,17 @@ if __name__ == '__main__':
     # Check if we run on multi-node
     if hosts and len(hosts) > 1:
         print("### Starting multi-node/gpu training on: {} ...".format(' '.join(hosts)), end=' ')
-        log_file = os.path.join(logs_folder, "multi-node-controllers.{}")
+        log_file = os.path.join(logs_folder, "multi-node-controllers.log")
         env = dict(os.environ)
         theano_flags = "THEANO_FLAGS={0}".format(env.pop('THEANO_FLAGS', ''))
+        keep_list = ['PATH', 'LD_LIBRARY_PATH', theano_flags]
         command = ["mpirun"]
         command += ["-mca", "mpi_warn_on_fork", "0"]
         command += ["--oversubscribe"]
         command += ["-np", str(len(hosts))]
         command += ["-H", ','.join(hosts)]
-        command += ["--output-filename", log_file.format("log")]
-        command += shlex.split("-x " + " -x ".join(env.keys()) + " -x " + theano_flags)
+        command += ["--output-filename", log_file]
+        command += shlex.split("-x " + " -x ".join(keep_list))
         if controller_type == "platoon":
             executable = ["-m", "platoon.channel.controller"]
         else:
@@ -144,6 +147,7 @@ if __name__ == '__main__':
         except Exception as exc:
             print("\nERROR! Other in Popen: {}".format(exc))
             sys.exit(4)
+        print(' '.join(command))
         print("Done")
         experiment_type = "Multi-node Controllers"
     else:

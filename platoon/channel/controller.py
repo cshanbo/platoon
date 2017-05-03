@@ -140,12 +140,6 @@ class Controller(object):
 
         # Initialize workers
         if experiment_name:
-            if self._multinode:
-                log_directory = os.path.join(log_directory, socket.gethostname())
-            try:
-                os.makedirs(log_directory)
-            except OSError:
-                pass
 
             if worker_args is None:
                 worker_args = ''
@@ -582,10 +576,11 @@ class Controller(object):
 
             bytesize = req_info['bytesize']
             try:
+                size = bytesize
                 shmref = posix_ipc.SharedMemory(self._last_shmem_name,
                                                 posix_ipc.O_CREAT,
                                                 size=bytesize)
-                shm = mmap(fd=shmref.fd, length=bytesize)
+                shm = mmap(fd=shmref.fd, length=size)
                 shmref.close_fd()
             except Exception as exc:
                 try:
@@ -719,7 +714,7 @@ class Controller(object):
         # Get :class:`Controller`'s devices
         hostname = socket.gethostname()
 
-        if devices:
+        if len(devices) != 0:
             # 1. Use device names from arguments if they are specified
             devices_found = devices
         else:

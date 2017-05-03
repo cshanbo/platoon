@@ -14,8 +14,6 @@ import sys
 
 import numpy
 try:
-    #  from mpi4py import rc
-    #  rc.initialize = False
     from mpi4py import MPI
 except ImportError:
     MPI = None
@@ -35,14 +33,16 @@ def launch_mpi_workers(workers_count, experiment_name, worker_args, devices):
     theano = os.environ['THEANO_FLAGS']
     info = MPI.Info.Create()
     info['host'] = socket.gethostname()
-    theano_flags = '%s, device=%s' % (theano,  devices[0].strip())
+    theano_flags = '%s,device=%s' % (theano, devices[0].strip())
     info.Set('env', 'THEANO_FLAGS=%s\n' % theano_flags)
     errcodes = []
-    intercomm = MPI.COMM_SELF.Spawn(sys.executable, args, workers_count,
-                                    info, root=0, errcodes=errcodes)
+
+    intercomm = MPI.COMM_SELF.Spawn(sys.executable, args, workers_count, info=info, 
+                                    root=0, errcodes=errcodes)
     info.Free()
-    if any(numpy.asarray(errcodes) != MPI.SUCCESS):
+    if numpy.any(numpy.asarray(errcodes) != MPI.SUCCESS):
         raise PlatoonError("MPI spawn multi error codes: {0}\nArgs passed: {1}".format(errcodes, args))
+
     return intercomm
 
 

@@ -97,16 +97,13 @@ class Worker(object):
                 "The port parameter of Worker was renamed to data_port"
                 " (as in the Controller)")
         self.context = zmq.Context()
-
         self._socket_timeout = socket_timeout
-
         self._worker_id = os.getpid()
 
         if data_port:
             self.init_mb_sock(data_port, data_hwm)
 
         self._init_control_socket(control_port)
-
         self._job_uid = self.send_req("platoon-get_job_uid")
         print("JOB UID received from the controler {}".format(self._job_uid))
         self._lock = posix_ipc.Semaphore("{}_lock".format(self._job_uid))
@@ -340,7 +337,7 @@ class Worker(object):
         self.asocket = self.context.socket(zmq.PULL)
         self.asocket.setsockopt(zmq.LINGER, 0)
         self.asocket.set_hwm(data_hwm)
-        self.asocket.connect("tcp://localhost:{}".format(port))
+        self.asocket.connect("tcp://127.0.0.1:{}".format(port))
 
         self.apoller = zmq.Poller()
         self.apoller.register(self.asocket, zmq.POLLIN)
@@ -360,7 +357,7 @@ class Worker(object):
         """
         self.csocket = self.context.socket(zmq.REQ)
         self.csocket.setsockopt(zmq.LINGER, 0)
-        self.csocket.connect('tcp://localhost:{}'.format(port))
+        self.csocket.connect('tcp://127.0.0.1:{}'.format(port))
 
         self.cpoller = zmq.Poller()
         self.cpoller.register(self.csocket, zmq.POLLIN)

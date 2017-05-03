@@ -6,24 +6,24 @@ from collections import OrderedDict
 import sys
 import argparse
 
+from pygpu import gpuarray
 import six
 from six import iteritems
 from six.moves import range
 
 import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 sys.path.append(os.path.dirname(__file__))
-import imdb
-
 from platoon.channel.worker import Worker
 from platoon.param_sync import EASGD
-
 import numpy
 import theano
 from theano import config
 import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+import imdb
 
 worker = None
 datasets = {'imdb': (imdb.load_data, imdb.prepare_data)}
@@ -32,17 +32,13 @@ datasets = {'imdb': (imdb.load_data, imdb.prepare_data)}
 def numpy_floatX(data):
     return numpy.asarray(data, dtype=config.floatX)
 
-
 def get_minibatches_idx(n, minibatch_size, shuffle=False):
     """
     Used to shuffle the dataset at each iteration.
     """
-    
-    # Diffrent nodes should NOT use the same
-    # mini-batches at the same time when training
-    numpy.random.seed(SEED + worker.global_rank)
-    idx_list = numpy.arange(n, dtype="int32")
 
+    idx_list = numpy.arange(n, dtype="int32")
+    numpy.random.seed(SEED + worker.global_rank)
     if shuffle:
         numpy.random.shuffle(idx_list)
 
@@ -102,7 +98,7 @@ def init_params(options):
     """
     params = OrderedDict()
     # embedding
-    # Different nodes should share the same initial params
+
     numpy.random.seed(SEED)
     randn = numpy.random.rand(options['n_words'],
                               options['dim_proj'])
@@ -114,6 +110,9 @@ def init_params(options):
     params['U'] = 0.01 * numpy.random.randn(options['dim_proj'],
                                             options['ydim']).astype(config.floatX)
     params['b'] = numpy.zeros((options['ydim'],)).astype(config.floatX)
+    print('A: initial model options')
+    for k in params:
+        print(k, params[k])
 
     return params
 
@@ -152,7 +151,6 @@ def param_init_lstm(options, params, prefix='lstm'):
 
     :see: init_params
     """
-    # Different nodes should share the same initial params
     numpy.random.seed(SEED)
     W = numpy.concatenate([ortho_weight(options['dim_proj']),
                            ortho_weight(options['dim_proj']),
@@ -167,6 +165,9 @@ def param_init_lstm(options, params, prefix='lstm'):
     b = numpy.zeros((4 * options['dim_proj'],))
     params[_p(prefix, 'b')] = b.astype(config.floatX)
 
+    print('A: initial lstm params')
+    for k in params:
+        print(k, params[k])
     return params
 
 
@@ -484,8 +485,7 @@ def train_lstm(
     test_size=-1,  # If >0, we keep only this number of test example.
     valid_sync=False,
     param_sync_api=False, 
-    update_algorithm='EASGD', 
-    seed=0
+    update_algorithm='EASGD'
 ):
 
     # Model options
@@ -513,7 +513,6 @@ def train_lstm(
     print('Building model')
     # This create the initial parameters as numpy ndarrays.
     # Dict name (string) -> numpy ndarray
-
     params = init_params(model_options)
 
     if reload_model:
@@ -524,6 +523,7 @@ def train_lstm(
     # params and tparams have different copy of the weights.
     tparams = init_tparams(params)
     list_tparams = list(tparams.values())
+
     if param_sync_api:
         print("Using param_sync worker's interface!")
         worker.init_shared_params(list_tparams, param_sync_rule=EASGD(0.5))
@@ -537,10 +537,10 @@ def train_lstm(
             algorithm.make_rule(list_tparams, list_cparams, 0.5)
         elif update_algorithm == 'AverageSGD':
             algorithm = gd.AverageSGD(worker)
-            algorithm.make_rule(list_tparams, list_cparams)
+            algorithm.make_rule(list_tparams)
         else:
             algorithm = gd.SumSGD(worker)
-            algorithm.make_rule(list_tparams, list_cparams)
+            algorithm.make_rule(list_tparams)
     print("Params init done")
 
     # use_noise is for dropout
@@ -589,7 +589,7 @@ def train_lstm(
         step = worker.send_req('next')
         print(step)
 
-        if step == 'train':
+        if step == 'train' or (param_sync_api and step == 'sync'):
             use_noise.set_value(numpy_floatX(1.))
             for i in range(train_len):
                 x, mask, y = next(train_it)
@@ -601,17 +601,11 @@ def train_lstm(
             print("Syncing with global params")
             if param_sync_api:
                 worker.sync_params(synchronous=True)
-            else:
-                algorithm()
-        """
-        if step.startswith('save '):
-            _, saveto = step.split(' ', 1)
-            print 'Saving...',
-            # TODO fix that shit so that saving works.
-            numpy.savez(saveto, history_errs=history_errs, **s.params)
-            pkl.dump(model_options, open('%s.pkl' % saveto, 'wb'), -1)
-            print 'Done'
-        """
+
+        # multi-node scenario
+        # syncing params across all workers
+        if step == 'sync':
+            algorithm()
 
         if step == 'valid':
             if param_sync_api and valid_sync:
@@ -637,45 +631,23 @@ def train_lstm(
     # Release all shared resources.
     worker.close()
 
-    # FIX that shit later.
-"""
-    if best_p is not None:
-        zipp(best_p, tparams)
-    else:
-        best_p = unzip(tparams)
-
-    use_noise.set_value(numpy_floatX(0.))
-    kf_train_sorted = get_minibatches_idx(len(train[0]), batch_size)
-    train_err = pred_error(f_pred, prepare_data, train, kf_train_sorted)
-    valid_err = pred_error(f_pred, prepare_data, valid, kf_valid)
-    test_err = pred_error(f_pred, prepare_data, test, kf_test)
-
-    print 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err
-    if saveto:
-        numpy.savez(saveto, train_err=train_err,
-                    valid_err=valid_err, test_err=test_err,
-                    history_errs=history_errs, **best_p)
-    print 'The code run for %d epochs, with %f sec/epochs' % (
-        (eidx + 1), (end_time - start_time) / (1. * (eidx + 1)))
-    print >> sys.stderr, ('Training took %.1fs' %
-                          (end_time - start_time))
-    return train_err, valid_err, test_err
-"""
-
 if __name__ == '__main__':
     # See function train for all possible parameter and there definition.
     parser = Worker.default_parser()
     parser.add_argument('--valid_sync', dest='valid_sync', action='store_true', default=False)
     parser.add_argument('--param-sync-api', action='store_true', default=False)
-    parser.add_argument('--update-algorithm', type=str, default='EASGD',
-                         choices=['AverageSGD', 'SumSGD', 'EASGD'],
-                         help='Synchronous updating algorithm for multi-node')
-    parser.add_argument('--random-seed', type=int, default=0, 
-                         help='random seed for fetching mini-batches')
-    args = parser.parse_args()
+    parser.add_argument('--update-algorithm', type=str, default='AverageSGD', 
+                         choices=['EASGD', 'AverageSGD', 'SumSGD'], 
+                         help='Synchronous updating algorithm for multi-node scenario')
 
+    args = parser.parse_args()
     worker = Worker(**(args.__dict__))
-    SEED = args.random_seed
+    # worker = Worker(**(parser.parse_known_args()[0].__dict__))
+    # Set the random number generators' seeds for consistency
+    # Each worker **MUST** be seeded with a different number, so that
+    # they do not draw the same minibatches!
+    SEED = 123
+    numpy.random.seed(SEED + worker.global_rank)
+
     train_lstm(valid_sync=args.valid_sync, test_size=500,
-               param_sync_api=args.param_sync_api, update_algorithm=args.update_algorithm
-               seed=SEED)
+               param_sync_api=args.param_sync_api, update_algorithm=args.update_algorithm)

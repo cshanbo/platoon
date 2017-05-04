@@ -140,12 +140,12 @@ class SGD(_GlobalDynamicsNoSet):
         self.average = average
         super(SGD, self).__init__(worker)
 
-    def make_rule(self, local_updates, central_particle):
-        """Makes global synchronous SGD rule for the parameters in `local_updates`.
+    def make_rule(self, local_particle, central_particle):
+        """Makes global synchronous SGD rule for the parameters in `local_particle`.
 
         Parameters
         ----------
-        local_updates : {:ref:`theano.compile.SharedVariable`,
+        local_particle : {:ref:`theano.compile.SharedVariable`,
                          list of :ref:`theano.compile.SharedVariable`}
            These variables represent the updates found
            by local optimization dynamics on the model's parameters.
@@ -154,20 +154,21 @@ class SGD(_GlobalDynamicsNoSet):
 
         """
         import theano
-        if isinstance(local_updates, theano.compile.SharedVariable):
-            local_updates = [local_updates]
+        if isinstance(local_particle, theano.compile.SharedVariable):
+            local_particle = [local_particle]
         if isinstance(central_particle, theano.compile.SharedVariable):
             central_particle = [central_particle]
         global_updates = []
-        for update, central in zip(local_updates, central_particle):
-            distance = central - update
-            gup = AllReduceSum(distance, inplace=True)
+        for local, central in zip(local_particle, central_particle):
+            distance = central - local 
+            gup = AllReduceSum(distance)
             if self.average:
                 gup /= self.worker.global_size
             gup += update
             global_updates.append(gup)
         self._fn = theano.function([], [],
-                                   updates=list(zip(local_updates, global_updates)),
+                                   updates=list(zip(local_particle, global_updates)) + \
+                                           list(zip(central_particle, local_particle)),
                                    accept_inplace=True)
 
 

@@ -89,10 +89,8 @@ multi-node.'''))
 
 if __name__ == '__main__':
     args = parse_arguments()
+
     logs_folder = args.logs_folder
-    if not os.path.exists(logs_folder):
-        print('\nMaking directory %s!' % logs_folder)
-        os.makedirs(logs_folder)
 
     print("### Launching experiment: {}".format(args.experiment_name))
 
@@ -125,6 +123,7 @@ if __name__ == '__main__':
         command = ["mpirun"]
         command += ["-mca", "mpi_warn_on_fork", "0"]
         command += ["--oversubscribe"]
+        command += ["--report-pid", os.path.join(logs_folder, "pids.txt")]
         command += ["-np", str(len(hosts))]
         command += ["-H", ','.join(hosts)]
         command += ["--output-filename", log_file]
@@ -141,15 +140,16 @@ if __name__ == '__main__':
             command += ["-w", args.worker_args]
         try:
             p = subprocess.Popen(command)
+
         except OSError as exc:
             print("\nERROR! OS error in Popen: {}".format(exc))
             sys.exit(3)
         except Exception as exc:
             print("\nERROR! Other in Popen: {}".format(exc))
             sys.exit(4)
-        print(' '.join(command))
         print("Done")
         experiment_type = "Multi-node Controllers"
+
     else:
         print("### Starting single-node multi-gpu training")
         if hosts:
@@ -170,6 +170,10 @@ if __name__ == '__main__':
             controller_args += ["-w={}".format(args.worker_args)]
         try:
             p = launch_process(logs_folder, controller_type, controller_args, "cpu", "controller")
+
+            with open(logs_folder + '/pids.txt', 'w') as pidfile:
+                pidfile.write(str(p.pid) + '\n')
+
         except OSError as exc:
             print("\nERROR! OS error in Popen: {}".format(exc))
             sys.exit(3)

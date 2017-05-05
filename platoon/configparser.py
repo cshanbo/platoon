@@ -107,3 +107,26 @@ def fetch_hosts():
     splitter.whitespace += ','
     splitter.whitespace_split = True
     return list(splitter)
+
+def fetch_valid_device():
+    """A successful search returns a list of theano devices' string values.
+    An unsuccessful search raises a KeyError.
+
+    The (decreasing) priority order is:
+    - PLATOON_DEVICES
+    - PLATOONRC files (if they exist) from right to left
+    - working directory's ./.platoonrc
+    - ~/.platoonrc
+
+    """
+    try:
+        try:
+            devices = platoon_cfg.get("valid", "device")
+        except ConfigParser.InterpolationError:
+            devices = platoon_raw_cfg.get("valid", "device")
+    except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+        raise KeyError(host)
+    splitter = shlex.shlex(devices, posix=True)
+    splitter.whitespace += ','
+    splitter.whitespace_split = True
+    return list(splitter)

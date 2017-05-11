@@ -140,7 +140,7 @@ class SGD(_GlobalDynamicsNoSet):
         self.average = average
         super(SGD, self).__init__(worker)
 
-    def make_rule(self, local_updates, central_particle):
+    def make_rule(self, local_updates):
         """Makes global synchronous SGD rule for the parameters in `local_updates`.
 
         Parameters
@@ -156,15 +156,11 @@ class SGD(_GlobalDynamicsNoSet):
         import theano
         if isinstance(local_updates, theano.compile.SharedVariable):
             local_updates = [local_updates]
-        if isinstance(central_particle, theano.compile.SharedVariable):
-            central_particle = [central_particle]
         global_updates = []
-        for update, central in zip(local_updates, central_particle):
-            distance = central - update
-            gup = AllReduceSum(distance, inplace=True)
+        for update in local_updates:
+            gup = AllReduceSum(update, inplace=True)
             if self.average:
                 gup /= self.worker.global_size
-            gup += update
             global_updates.append(gup)
         self._fn = theano.function([], [],
                                    updates=list(zip(local_updates, global_updates)),

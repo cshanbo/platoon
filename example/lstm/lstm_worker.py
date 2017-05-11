@@ -537,10 +537,10 @@ def train_lstm(
             algorithm.make_rule(list_tparams, list_cparams, 0.5)
         elif update_algorithm == 'AverageSGD':
             algorithm = gd.AverageSGD(worker)
-            algorithm.make_rule(list_tparams, list_cparams)
+            algorithm.make_rule(list_tparams)
         else:
             algorithm = gd.SumSGD(worker)
-            algorithm.make_rule(list_tparams, list_cparams)
+            algorithm.make_rule(list_tparams)
     print("Params init done")
 
     # use_noise is for dropout

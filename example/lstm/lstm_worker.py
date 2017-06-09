@@ -538,9 +538,16 @@ def train_lstm(
         elif update_algorithm == 'AverageSGD':
             algorithm = gd.AverageSGD(worker)
             algorithm.make_rule(list_tparams)
-        else:
+        elif update_algorithm == 'SumSGD':
             algorithm = gd.SumSGD(worker)
             algorithm.make_rule(list_tparams)
+        elif update_algorithm == 'Downpour':
+            acc_params = init_tparams(params)
+            list_acc_params = list(acc_params.values())
+            algorithm = gd.Downpour(worker)
+            algorithm.make_rule(list_tparams, list_acc_params, list_cparams)
+        else:
+            raise PlatoonError("Unrecognized update algorithm: %s" % update_algorithm)
     print("Params init done")
 
     # use_noise is for dropout

@@ -644,7 +644,7 @@ if __name__ == '__main__':
     parser.add_argument('--valid_sync', dest='valid_sync', action='store_true', default=False)
     parser.add_argument('--param-sync-api', action='store_true', default=False)
     parser.add_argument('--update-algorithm', type=str, default='AverageSGD', 
-                         choices=['EASGD', 'AverageSGD', 'SumSGD'], 
+                         choices=['EASGD', 'AverageSGD', 'SumSGD', 'Downpour'], 
                          help='Synchronous updating algorithm for multi-node scenario')
 
     args = parser.parse_args()

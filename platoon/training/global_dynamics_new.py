@@ -140,12 +140,12 @@ class SGD(_GlobalDynamicsNoSet):
         self.average = average
         super(SGD, self).__init__(worker)
 
-    def make_rule(self, local_particle, central_particle):
-        """Makes global synchronous SGD rule for the parameters in `local_particle`.
+    def make_rule(self, local_updates, central_particle):
+        """Makes global synchronous SGD rule for the parameters in `local_updates`.
 
         Parameters
         ----------
-        local_particle : {:ref:`theano.compile.SharedVariable`,
+        local_updates : {:ref:`theano.compile.SharedVariable`,
                          list of :ref:`theano.compile.SharedVariable`}
            These variables represent the updates found
            by local optimization dynamics on the model's parameters.
@@ -154,21 +154,23 @@ class SGD(_GlobalDynamicsNoSet):
 
         """
         import theano
-        if isinstance(local_particle, theano.compile.SharedVariable):
-            local_particle = [local_particle]
+        if isinstance(local_updates, theano.compile.SharedVariable):
+            local_updates = [local_updates]
         if isinstance(central_particle, theano.compile.SharedVariable):
             central_particle = [central_particle]
         global_updates = []
-        for local, central in zip(local_particle, central_particle):
-            distance = central - local 
-            gup = AllReduceSum(distance)
+        for update, central in zip(local_updates, central_particle):
+            distance = update - central
+            gup = AllReduceSum(distance, inplace=True)
             if self.average:
                 gup /= self.worker.global_size
-            gup += update
+            gup += central
             global_updates.append(gup)
+        updates = list(zip(local_updates, global_updates)) + \
+                  list(zip(central_particle, global_updates))
+
         self._fn = theano.function([], [],
-                                   updates=list(zip(local_particle, global_updates)) + \
-                                           list(zip(central_particle, local_particle)),
+                                   updates=updates,
                                    accept_inplace=True)
 
 
@@ -315,7 +317,8 @@ class Downpour(_GlobalDynamicsNoSet):
         new_local = []
         new_acc_updates = []
         for lp, lau, gp in zip(local_particle, local_acc_updates, global_particle):
-            global_acc_updates = AllReduceSum(lau, inplace=True)
+            distance = lp - gp
+            global_acc_updates = AllReduceSum(distance, inplace=True)
             if self.average:
                 global_acc_updates /= self.worker.global_size
             new_global.append(gp + global_acc_updates)

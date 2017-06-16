@@ -529,7 +529,7 @@ def train_lstm(
         worker.init_shared_params(list_tparams, param_sync_rule=EASGD(0.5))
     else:
         print("Using all_reduce worker's interface!")
-        from platoon.training import global_dynamics as gd
+        from platoon.training import global_dynamics_new as gd
         cparams = init_tparams(params)
         list_cparams = list(cparams.values())
         if update_algorithm == 'EASGD':
@@ -537,10 +537,10 @@ def train_lstm(
             algorithm.make_rule(list_tparams, list_cparams, 0.5)
         elif update_algorithm == 'AverageSGD':
             algorithm = gd.AverageSGD(worker)
-            algorithm.make_rule(list_tparams)
+            algorithm.make_rule(list_tparams, list_cparams)
         elif update_algorithm == 'SumSGD':
             algorithm = gd.SumSGD(worker)
-            algorithm.make_rule(list_tparams)
+            algorithm.make_rule(list_tparams, list_cparams)
         elif update_algorithm == 'Downpour':
             acc_params = init_tparams(params)
             list_acc_params = list(acc_params.values())
